@@ -1,0 +1,221 @@
+package mgtu.SiteFetcher;
+
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.MessageProperties;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
+import org.apache.http.RequestLine;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicHeader;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+
+public class TaskController extends Thread{
+    private static Logger log = LogManager.getLogger();
+    public static final String PEER_CERTIFICATES = "PEER_CERTIFICATES";
+    private CloseableHttpClient client = null;
+    private HttpClientContext context;
+    //private HttpClientBuilder builder;
+    private URL serverUrl;
+    private List<Header> headers = new ArrayList<>();
+
+    //private String server = "https://mytishi.ru/";
+    private int retryDelay = 5 * 1000;
+    private int retryCount = 2;
+    //private Timeout metadataTimeout = Timeout.ofSeconds(30);
+    private int metadataTimeout = 30 * 1000;
+    private Channel channel;
+    static String exchangeName = "exchangeName";
+    static String RoutingKeyToDownload = "routingKeyToDownload";
+    public static String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 YaBrowser/23.1.2.998 Yowser/2.5 Safari/537.36";
+    public TaskController(Channel channel, String server) {
+        CookieStore httpCookieStore = new BasicCookieStore();
+        this.channel = channel;
+       /*builder = HttpClientBuilder.create().setDefaultCookieStore(httpCookieStore);
+        client = builder.build();
+        this.server = _server;*/
+        client = HttpClients.custom().setUserAgent(this.userAgent).build();
+        context = HttpClientContext.create();
+        context.setCookieStore(httpCookieStore);
+
+        if (!server.startsWith("https://") && !server.startsWith("http://"))
+            server = "http://" + server;
+        try {
+            serverUrl = new URL(server);
+        } catch (MalformedURLException e){
+            log.error(e);
+        }
+
+        headers.add(new BasicHeader(HttpHeaders.USER_AGENT, this.userAgent));
+        headers.add(new BasicHeader(HttpHeaders.HOST, serverUrl.getHost()));
+        headers.add(new BasicHeader(HttpHeaders.ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\""));
+        headers.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"));
+        //headers.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+        //headers.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+        //headers.add(new BasicHeader(HttpHeaders.CONTENT_TYPE, "text/html;charset=UTF-8"));
+        headers.add(new BasicHeader("Sec-Fetch-Dest", "document"));
+        headers.add(new BasicHeader("Sec-Fetch-Mode", "navigate"));
+        headers.add(new BasicHeader("Sec-Fetch-Site", "none"));
+        headers.add(new BasicHeader("Sec-Fetch-User", "?1"));
+        headers.add(new BasicHeader("Upgrade-Insecure-Requests", "1"));
+
+        headers.add(new BasicHeader("Pragma", "no-cache"));
+        headers.add(new BasicHeader("Cache-Control", "no-cache"));
+    }
+
+    @Override
+    public void run(){
+        getUrl(serverUrl.toString());
+    }
+
+    public void publishToRMQ(String element, String queuePublish) {
+        byte[] messageBodyBytes = element.getBytes();
+        log.info("Publishing to queue: " + queuePublish);
+        Channel channel;
+        try {
+            channel = this.conn.createChannel();
+        } catch (IOException e) {
+            log.error(e);
+            return;
+        }
+        try {
+//            channel.queueDeclare(queuePublish, false, false, false, null);
+            channel.basicPublish(
+                    exchangeName,
+                    queuePublish,
+                    false,
+                    MessageProperties.PERSISTENT_TEXT_PLAIN, messageBodyBytes);
+        } catch (Exception e) {
+            log.error(e);
+        }
+        try {
+            channel.close();
+        } catch (Exception e) {
+            log.error(e);
+        }
+    }
+    public Document getUrl(String  url) {
+        //String url = server + "/news/" + newsId;
+        int code = 0;
+        boolean bStop = false;
+        Document doc = null;
+        URI uri;
+        try {
+            uri = new URI(serverUrl + url);
+        } catch (Exception e) {
+            log.error(e);
+            return null;
+        }
+
+        for (int iTry = 0; iTry < retryCount && !bStop; iTry++){
+            log.info("getting page from url " + url);
+            //client = builder.build();
+            //client = HttpClientBuilder.create().build();
+            RequestConfig requestConfig = RequestConfig.custom()
+                    //.setSocketTimeout(metadataTimeout)
+                    .setConnectTimeout(metadataTimeout)
+                    .setConnectionRequestTimeout(metadataTimeout)
+                    .setExpectContinueEnabled(true)
+                    .build();
+            HttpGet request = new HttpGet(url);
+            request.setConfig(requestConfig);
+            CloseableHttpResponse response = null;
+            try {
+                response = client.execute(request);
+                code = response.getStatusLine().getStatusCode();
+                if (code == 404) {
+                    log.warn("error get url " + url + " code " + code);
+                    bStop = true;
+                }
+                else if (code == 200) {
+                    HttpEntity entity = response.getEntity();
+                    if (entity != null){
+                        try {
+                            doc = Jsoup.parse(entity.getContent(), "UTF-8", serverUrl.toString());
+                            break;
+                        } catch (IOException e){
+                            log.error(e);
+                        }
+                    }
+                    bStop = true;
+                } else {
+                    if (code == 403) {
+                        log.warn("error get url " + url + " code " + code);
+                        for (Header header : response.getHeaders(url)) {
+                            Header eheader = headers.stream()
+                                    .filter(h -> h.getName().equals(header.getName()))
+                                    .findAny()
+                                    .orElse(null);
+                            if (eheader == null)
+                                headers.add(header);
+                        }
+                    } else {
+                        log.warn("error get url " + url + " code " + code);
+                        response.close();
+                        response = null;
+                        client.close();
+                        /*CookieStore httpCookieStore = new BasicCookieStore();
+                        builder.setDefaultCookieStore(httpCookieStore);
+                        client = builder.build();*/
+                        int delay = retryDelay * 1000 * (iTry + 1);
+                        log.info("wait " + delay / 1000 + " s...");
+                        try {
+                            Thread.sleep(delay);
+                            continue;
+                        } catch (InterruptedException ex) {
+                            break;
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                log.error(e);
+            }
+            if (response != null) {
+                try {
+                    response.close();
+                } catch (IOException e) {
+                    log.error(e);
+                }
+            }
+        }
+        return doc;
+    }
+
+    public String GetPage(String link){
+        Document ndoc = getUrl(link);
+        String text = null;
+        if (ndoc != null){
+            Elements newsDoc = ndoc.getElementsByClass("text-container");
+            text = newsDoc.text();
+        }
+        return text;
+    }
+}
