@@ -30,7 +30,7 @@ public class TaskConsumer extends Thread {
 
     static String queueElk = "elk_queue";
 
-    static String baseUrl = "https://www.gazeta.ru";
+    static String baseUrl = "https://mcpromo.ru/e";
 
     Connection conn;
 
