@@ -1,7 +1,6 @@
 package mgtu.SiteFetcher;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.MessageProperties;
+import com.rabbitmq.client.*;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -29,16 +28,19 @@ import javax.net.ssl.SSLSession;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 
-public class TaskController extends Thread{
+public class TaskProducer extends Thread{
     private static Logger log = LogManager.getLogger();
     public static final String PEER_CERTIFICATES = "PEER_CERTIFICATES";
     private CloseableHttpClient client = null;
@@ -56,23 +58,36 @@ public class TaskController extends Thread{
     static String exchangeName = "exchangeName";
     static String RoutingKeyToDownload = "routingKeyToDownload";
     public static String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 YaBrowser/23.1.2.998 Yowser/2.5 Safari/537.36";
-    public TaskController(Channel channel, String server) {
+
+    static String queueDownload = "queue download";
+    static String queueParse = "queue parse";
+    static String consumerTag = "myConsumerTag";
+
+    Connection conn;
+
+    public TaskProducer(RabbitMqCreds rabbitCreds) throws IOException, TimeoutException {
         CookieStore httpCookieStore = new BasicCookieStore();
-        this.channel = channel;
-       /*builder = HttpClientBuilder.create().setDefaultCookieStore(httpCookieStore);
-        client = builder.build();
-        this.server = _server;*/
         client = HttpClients.custom().setUserAgent(this.userAgent).build();
         context = HttpClientContext.create();
         context.setCookieStore(httpCookieStore);
 
-        if (!server.startsWith("https://") && !server.startsWith("http://"))
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setUsername(rabbitCreds.username);
+        factory.setPassword(rabbitCreds.password);
+        factory.setVirtualHost(rabbitCreds.virtualHost);
+        factory.setHost(rabbitCreds.host);
+        factory.setPort(rabbitCreds.port);
+        this.conn = factory.newConnection();
+        this.channel = this.conn.createChannel();
+        this.channel.queueDeclare(queueDownload, false, false, false, null);
+
+        /*if (!server.startsWith("https://") && !server.startsWith("http://"))
             server = "http://" + server;
         try {
             serverUrl = new URL(server);
         } catch (MalformedURLException e){
             log.error(e);
-        }
+        }*/
 
         headers.add(new BasicHeader(HttpHeaders.USER_AGENT, this.userAgent));
         headers.add(new BasicHeader(HttpHeaders.HOST, serverUrl.getHost()));
@@ -93,7 +108,25 @@ public class TaskController extends Thread{
 
     @Override
     public void run(){
-        getUrl(serverUrl.toString());
+        try {
+            channel.basicConsume(queueDownload, false, consumerTag, new DefaultConsumer(channel) {
+                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                    long deliveryTag = envelope.getDeliveryTag();
+                    String message = new String(body, StandardCharsets.UTF_8);
+                    log.info("Got link: " + message);
+                    //URL url = new URL(message);
+                    //try {
+                        String doc = String.valueOf(getUrl(message));
+                        publishToRMQ(doc, queueParse);
+                    //} catch (URISyntaxException e) {
+                    //    throw new RuntimeException(e);
+                    //}
+                    channel.basicAck(deliveryTag, false);
+                }
+            });
+        } catch (Exception e) {
+            log.error(e);
+        }
     }
 
     public void publishToRMQ(String element, String queuePublish) {
@@ -207,15 +240,5 @@ public class TaskController extends Thread{
             }
         }
         return doc;
-    }
-
-    public String GetPage(String link){
-        Document ndoc = getUrl(link);
-        String text = null;
-        if (ndoc != null){
-            Elements newsDoc = ndoc.getElementsByClass("text-container");
-            text = newsDoc.text();
-        }
-        return text;
     }
 }
