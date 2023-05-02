@@ -30,7 +30,7 @@ public class TaskConsumer extends Thread {
 
     static String queueElk = "elk_queue";
 
-    static String baseUrl = "https://mcpromo.ru/e";
+    static String serverUrl = "https://bugs.chromium.org/p/chromium/issues/detail?id=1441795";
 
     Connection conn;
 
@@ -45,6 +45,7 @@ public class TaskConsumer extends Thread {
         this.channel = this.conn.createChannel();
         this.channel.queueDeclare(queueDownload, false, false, false, null);
         this.channel.queueDeclare(queueElk, false, false, false, null);
+        publishToRMQ(serverUrl, queueDownload);
     }
 
     @Override
@@ -57,7 +58,7 @@ public class TaskConsumer extends Thread {
                     List<String> urls = parseDocument(message);
                     log.info("Parsing new html");
                     for (String url_ : urls) {
-                        log.info("Producing new url: " + url_);
+                        log.info("Add to queueDownload new url: " + url_);
                         publishToRMQ(url_, queueDownload);
                     }
                     Article article = getArticle(message);
@@ -134,8 +135,9 @@ public class TaskConsumer extends Thread {
                     String link = element.attr("href");
 //                    log.info(element.text());
                     if (!link.startsWith("https://") && !link.startsWith("http://")) {
-                        link = baseUrl + link;
+                        link = serverUrl + link;
                     }
+                    System.out.printf("link: %s \n", link);
                     urls.add(link);
                 } catch (Exception e) {
                     log.error(e);

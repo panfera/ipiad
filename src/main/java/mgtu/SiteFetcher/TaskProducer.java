@@ -79,7 +79,7 @@ public class TaskProducer extends Thread{
         factory.setPort(rabbitCreds.port);
         this.conn = factory.newConnection();
         this.channel = this.conn.createChannel();
-        this.channel.queueDeclare(queueDownload, false, false, false, null);
+        this.channel.queueDeclare(queueParse, false, false, false, null);
 
         /*if (!server.startsWith("https://") && !server.startsWith("http://"))
             server = "http://" + server;
@@ -88,22 +88,21 @@ public class TaskProducer extends Thread{
         } catch (MalformedURLException e){
             log.error(e);
         }*/
-
-        headers.add(new BasicHeader(HttpHeaders.USER_AGENT, this.userAgent));
-        headers.add(new BasicHeader(HttpHeaders.HOST, serverUrl.getHost()));
-        headers.add(new BasicHeader(HttpHeaders.ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\""));
-        headers.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"));
+        //headers.add(new BasicHeader(HttpHeaders.USER_AGENT, this.userAgent));
+        //headers.add(new BasicHeader(HttpHeaders.HOST, serverUrl.getHost()));
+        //headers.add(new BasicHeader(HttpHeaders.ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\""));
+        //headers.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"));
         //headers.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
         //headers.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
         //headers.add(new BasicHeader(HttpHeaders.CONTENT_TYPE, "text/html;charset=UTF-8"));
-        headers.add(new BasicHeader("Sec-Fetch-Dest", "document"));
-        headers.add(new BasicHeader("Sec-Fetch-Mode", "navigate"));
-        headers.add(new BasicHeader("Sec-Fetch-Site", "none"));
-        headers.add(new BasicHeader("Sec-Fetch-User", "?1"));
-        headers.add(new BasicHeader("Upgrade-Insecure-Requests", "1"));
+        //headers.add(new BasicHeader("Sec-Fetch-Dest", "document"));
+        //headers.add(new BasicHeader("Sec-Fetch-Mode", "navigate"));
+        //headers.add(new BasicHeader("Sec-Fetch-Site", "none"));
+        //headers.add(new BasicHeader("Sec-Fetch-User", "?1"));
+        //headers.add(new BasicHeader("Upgrade-Insecure-Requests", "1"));
+        //headers.add(new BasicHeader("Pragma", "no-cache"));
+        //headers.add(new BasicHeader("Cache-Control", "no-cache"));
 
-        headers.add(new BasicHeader("Pragma", "no-cache"));
-        headers.add(new BasicHeader("Cache-Control", "no-cache"));
     }
 
     @Override
@@ -113,14 +112,15 @@ public class TaskProducer extends Thread{
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                     long deliveryTag = envelope.getDeliveryTag();
                     String message = new String(body, StandardCharsets.UTF_8);
-                    log.info("Got link: " + message);
+                    log.info("New link: " + message);
                     //URL url = new URL(message);
-                    //try {
+                    try {
                         String doc = String.valueOf(getUrl(message));
+                    log.info("Add to queueParse new doc with link: " + message);
                         publishToRMQ(doc, queueParse);
-                    //} catch (URISyntaxException e) {
-                    //    throw new RuntimeException(e);
-                    //}
+                    } catch (URISyntaxException e) {
+                        throw new RuntimeException(e);
+                    }
                     channel.basicAck(deliveryTag, false);
                 }
             });
@@ -155,7 +155,7 @@ public class TaskProducer extends Thread{
             log.error(e);
         }
     }
-    public Document getUrl(String  url) {
+    public Document getUrl(String  url) throws URISyntaxException{
         //String url = server + "/news/" + newsId;
         int code = 0;
         boolean bStop = false;

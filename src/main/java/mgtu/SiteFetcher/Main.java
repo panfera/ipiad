@@ -12,11 +12,8 @@ public class Main {
     private static String site = "https://mcpromo.ru/e";//https://mytyshi.ru/";
 
     public static void main(String[] args) {
-        // taskController = new TaskController(site);
-        //Document doc = taskController.getUrl(site);
         BasicConfigurator.configure();
         try {
-
             RabbitMqCreds rabbitCreds = new RabbitMqCreds("rabbitmq",
                     "rabbitmq",
                     "/",
@@ -30,7 +27,6 @@ public class Main {
 
         } catch (Exception e) {
             log.error(e);
-            return;
         }
     }
 
