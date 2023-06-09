@@ -9,7 +9,7 @@ public class Main {
     private static Logger log = LogManager.getLogger();
     private static Thread taskProducer;
     private static Thread taskConsumer;
-    private static String site = "https://mcpromo.ru/e";//https://mytyshi.ru/";
+   // private static String site = "https://bugs.chromium.org/p/chromium/issues/"; //https://mcpromo.ru/e";//https://mytyshi.ru/";
 
     public static void main(String[] args) {
         BasicConfigurator.configure();

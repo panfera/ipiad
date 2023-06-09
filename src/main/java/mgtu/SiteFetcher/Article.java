@@ -14,7 +14,7 @@ public class Article {
         this.title = title;
         this.author = author;
         this.url = url;
-        this.date = date;
+        //this.date = date;
         this.content = content;
     }
 

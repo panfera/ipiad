@@ -30,8 +30,7 @@ public class TaskConsumer extends Thread {
 
     static String queueElk = "elk_queue";
 
-    static String serverUrl = "https://bugs.chromium.org/p/chromium/issues/detail?id=1441795";
-
+    static String serverUrl = "https://www.sport-express.ru/";
     Connection conn;
 
     public TaskConsumer(RabbitMqCreds rabbitCreds) throws IOException, TimeoutException {
@@ -56,7 +55,7 @@ public class TaskConsumer extends Thread {
                     long deliveryTag = envelope.getDeliveryTag();
                     String message = new String(body, StandardCharsets.UTF_8);
                     List<String> urls = parseDocument(message);
-                    log.info("Parsing new html");
+                    log.info("Parsing new html" + urls);
                     for (String url_ : urls) {
                         log.info("Add to queueDownload new url: " + url_);
                         publishToRMQ(url_, queueDownload);
@@ -65,7 +64,7 @@ public class TaskConsumer extends Thread {
                     if (article!= null) {
                         // convert user object to json string and return it
                         String jsonString = article.toJson().toString();
-                        publishToRMQ(jsonString, queueElk);
+                        //publishToRMQ(jsonString, queueElk);
                     }
                     channel.basicAck(deliveryTag, false);
                 }
@@ -105,17 +104,48 @@ public class TaskConsumer extends Thread {
 
     public Article getArticle(String doc) {
         try {
-            Document parsedDoc = Jsoup.parse(doc);
-            String timeTag = parsedDoc.getElementsByTag("time").first().attr("datetime");
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
-            Date date = formatter.parse(timeTag);
-            String title = parsedDoc.getElementsByTag("title").first().text();
-            String url = parsedDoc.select("meta[property=og:url]").first().attr("content");
-            String author = parsedDoc.getElementsByClass("author-item").first().select("a").first().text();
-            Elements contents = parsedDoc.getElementsByClass("b_article-text").select("p");
-            String content = "";
-            for (Element element : contents) {
-                content += element.text() + "\n";
+            Document parsedDoc;
+            String timeTag, title, url, author, content;
+            SimpleDateFormat formatter;
+            Elements contents;
+            Date date;
+
+            parsedDoc = Jsoup.parse(doc);
+
+            try {
+                timeTag = parsedDoc.getElementsByTag("time").first().attr("datetime");
+                formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
+                date = formatter.parse(timeTag);
+            }catch (Exception e){
+                date = new Date();
+            }
+
+            try {
+                title = parsedDoc.getElementsByTag("title").first().text();
+            }catch(Exception e){
+                title = "";
+            }
+
+            try {
+                url = parsedDoc.select("meta[property=og:url]").first().attr("content");
+            }catch(Exception e){
+                url = "";
+            }
+
+            try{
+                author = parsedDoc.getElementsByClass("author-item").first().select("a").first().text();
+            }catch(Exception e){
+                author = "";
+            }
+
+            try {
+                contents = parsedDoc.getElementsByClass("b_article-text").select("p");
+                content = "";
+                for (Element element : contents) {
+                    content += element.text() + "\n";
+                }
+            }catch(Exception e){
+                content="";
             }
             return new Article(title, author, url, date, content);
         } catch (Exception ex) {
@@ -128,11 +158,10 @@ public class TaskConsumer extends Thread {
         List<String> urls = new ArrayList();
         try {
             Document parsedDoc = Jsoup.parse(doc);
-            Elements aTag = parsedDoc.getElementsByClass("w_col2").
-                    select("a");
+            Elements aTag = parsedDoc.getElementsByClass("se-mainnews-item"); //.getElementsByClass("w_col2"). select("a");
             for (Element element : aTag) {
                 try {
-                    String link = element.attr("href");
+                    String link = element.attr("data-url");
 //                    log.info(element.text());
                     if (!link.startsWith("https://") && !link.startsWith("http://")) {
                         link = serverUrl + link;

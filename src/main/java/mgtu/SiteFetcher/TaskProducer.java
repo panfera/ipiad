@@ -35,6 +35,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -46,7 +47,7 @@ public class TaskProducer extends Thread{
     private CloseableHttpClient client = null;
     private HttpClientContext context;
     //private HttpClientBuilder builder;
-    private URL serverUrl;
+    private URL serverUrl = new URL("https://mytishi.ru/");
     private List<Header> headers = new ArrayList<>();
 
     //private String server = "https://mytishi.ru/";
@@ -55,7 +56,7 @@ public class TaskProducer extends Thread{
     //private Timeout metadataTimeout = Timeout.ofSeconds(30);
     private int metadataTimeout = 30 * 1000;
     private Channel channel;
-    static String exchangeName = "exchangeName";
+    static String exchangeName = "";
     static String RoutingKeyToDownload = "routingKeyToDownload";
     public static String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 YaBrowser/23.1.2.998 Yowser/2.5 Safari/537.36";
 
@@ -115,9 +116,12 @@ public class TaskProducer extends Thread{
                     log.info("New link: " + message);
                     //URL url = new URL(message);
                     try {
-                        String doc = String.valueOf(getUrl(message));
-                    log.info("Add to queueParse new doc with link: " + message);
-                        publishToRMQ(doc, queueParse);
+                        Document d = getUrl(message);
+                        String doc = String.valueOf(d);
+                        //if (doc != "null") {
+                            log.info("Add to queueParse new doc with link: " + message);
+                            publishToRMQ(doc, queueParse);
+                        //}
                     } catch (URISyntaxException e) {
                         throw new RuntimeException(e);
                     }
@@ -155,7 +159,7 @@ public class TaskProducer extends Thread{
             log.error(e);
         }
     }
-    public Document getUrl(String  url) throws URISyntaxException{
+public Document getUrl(String  url) throws URISyntaxException{
         //String url = server + "/news/" + newsId;
         int code = 0;
         boolean bStop = false;
@@ -190,7 +194,7 @@ public class TaskProducer extends Thread{
                 }
                 else if (code == 200) {
                     HttpEntity entity = response.getEntity();
-                    if (entity != null){
+                    if (entity != null && serverUrl != null){
                         try {
                             doc = Jsoup.parse(entity.getContent(), "UTF-8", serverUrl.toString());
                             break;
