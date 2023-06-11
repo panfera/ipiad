@@ -29,7 +29,7 @@ public class TaskConsumer extends Thread {
     static String consumerTag = "myConsumerTag";
 
     static String queueElk = "elk_queue";
-
+    static String routingKey_elastic = "Route_to_elastic";
     static String serverUrl = "https://www.sport-express.ru/";
     Connection conn;
 
@@ -43,7 +43,7 @@ public class TaskConsumer extends Thread {
         this.conn = factory.newConnection();
         this.channel = this.conn.createChannel();
         this.channel.queueDeclare(queueDownload, false, false, false, null);
-        this.channel.queueDeclare(queueElk, false, false, false, null);
+        //this.channel.queueDeclare(queueElk, false, false, false, null);
         publishToRMQ(serverUrl, queueDownload);
     }
 
@@ -64,7 +64,7 @@ public class TaskConsumer extends Thread {
                     if (article!= null) {
                         // convert user object to json string and return it
                         String jsonString = article.toJson().toString();
-                        //publishToRMQ(jsonString, queueElk);
+                        publishToRMQ(jsonString, queueElk);
                     }
                     channel.basicAck(deliveryTag, false);
                 }
@@ -100,7 +100,6 @@ public class TaskConsumer extends Thread {
             log.error(e);
         }
     }
-
 
     public Article getArticle(String doc) {
         try {

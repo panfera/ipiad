@@ -47,7 +47,7 @@ public class TaskProducer extends Thread{
     private CloseableHttpClient client = null;
     private HttpClientContext context;
     //private HttpClientBuilder builder;
-    private URL serverUrl = new URL("https://mytishi.ru/");
+    private URL serverUrl = new URL("https://www.sport-express.ru/");
     private List<Header> headers = new ArrayList<>();
 
     //private String server = "https://mytishi.ru/";
