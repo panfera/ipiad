@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeoutException;
 
+import static mgtu.SiteFetcher.ElasticSearch.elk_check_unique;
+
 public class TaskConsumer extends Thread {
     public static Logger log = LogManager.getLogger();
     private Channel channel;
@@ -55,16 +57,21 @@ public class TaskConsumer extends Thread {
                     long deliveryTag = envelope.getDeliveryTag();
                     String message = new String(body, StandardCharsets.UTF_8);
                     List<String> urls = parseDocument(message);
-                    log.info("Parsing new html" + urls);
-                    for (String url_ : urls) {
-                        log.info("Add to queueDownload new url: " + url_);
-                        publishToRMQ(url_, queueDownload);
-                    }
+
                     Article article = getArticle(message);
-                    if (article!= null) {
+                    if (article!= null && elk_check_unique(article)) {
                         // convert user object to json string and return it
                         String jsonString = article.convert_to_Json().toString();
                         publishToRMQ(jsonString, queueElk);
+
+                        log.info("Parsing new html" + urls);
+                        for (String url_ : urls) {
+                            log.info("Add to queueDownload new url: " + url_);
+                            publishToRMQ(url_, queueDownload);
+                        }
+
+                    } else {
+                        log.info("Document already exist in elk wirh sha256: " + article.sha256);
                     }
                     channel.basicAck(deliveryTag, false);
                 }
