@@ -1,63 +1,25 @@
 package mgtu.SiteFetcher;
 
 import com.rabbitmq.client.*;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.RequestLine;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.message.BasicHeader;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
-
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.search.TotalHits;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-
-import org.elasticsearch.client.*;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.common.settings.Settings;
-
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.security.NoSuchAlgorithmException;
+import org.elasticsearch.xcontent.XContentType;
+import org.json.JSONObject;
 public class ElasticSearch extends Thread {
     public static Logger log = LogManager.getLogger();
     private Channel channel;
@@ -72,7 +34,7 @@ public class ElasticSearch extends Thread {
     String hostname = "localhost";
     int port = 9200;
     private static RestHighLevelClient client;
-    private static final String indexName = "asdas";
+    private static final String index = "sport";
 
     public ElasticSearch(RabbitMqCreds rabbitCreds) throws IOException, TimeoutException {
         ConnectionFactory factory = new ConnectionFactory();
@@ -100,9 +62,13 @@ public class ElasticSearch extends Thread {
                     }
                 });
         client = new RestHighLevelClient(restClientBuilder);
-
     }
 
+    private void push_to_elk(JSONObject obj) throws IOException {
+        CreateIndexRequest request = new CreateIndexRequest(index);
+        log.info("object: "+ obj);
+        request.mapping(String.valueOf(obj), XContentType.JSON);
+    }
     @Override
     public void run() {
         try {
@@ -116,7 +82,12 @@ public class ElasticSearch extends Thread {
 
                     log.info("New json object in elk");
 
-                    Article article = new Article(message);
+                    try {
+                        Article article = new Article(message);
+                        push_to_elk(article.convert_to_Json());
+                    } catch (Exception e) {
+                        log.error(e);
+                    }
                     // is_uniq? and send_to_elastic
                     channel.basicAck(deliveryTag, false);
                 }

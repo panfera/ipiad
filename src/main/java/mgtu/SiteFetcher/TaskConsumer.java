@@ -63,7 +63,7 @@ public class TaskConsumer extends Thread {
                     Article article = getArticle(message);
                     if (article!= null) {
                         // convert user object to json string and return it
-                        String jsonString = article.toJson().toString();
+                        String jsonString = article.convert_to_Json().toString();
                         publishToRMQ(jsonString, queueElk);
                     }
                     channel.basicAck(deliveryTag, false);

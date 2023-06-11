@@ -1,4 +1,6 @@
 package mgtu.SiteFetcher;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import org.apache.logging.log4j.LogManager;
@@ -8,6 +10,8 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Locale;
+
 public class Article {
     String title;
     String author;
@@ -27,8 +31,8 @@ public class Article {
         try {
             this.sha256 = getSHA256(url + date);
         }catch (Exception e){
+            this.sha256 = "";
             log.error(e);
-            return;
         }
 
     }
@@ -60,13 +64,26 @@ public class Article {
 
         return hexString.toString();
     }
-    public JSONObject toJson() {
+
+    public Article(String str) throws ParseException {
+        SimpleDateFormat formatter = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy", Locale.ENGLISH);
+        JSONObject json = new JSONObject(str);
+        this.title = json.getString("title");
+        this.author = json.getString("author");
+        this.url = json.getString("url");
+        this.date = formatter.parse(json.getString("date"));;
+        this.content = json.getString("content");
+        this.sha256 = json.getString("sha256");
+    }
+    public JSONObject convert_to_Json() {
         JSONObject json = new JSONObject();
         json.put("title", title);
         json.put("author", author);
         json.put("url", url);
         json.put("date", date);
         json.put("content", content);
+        json.put("sha256", sha256);
+        log.info("json: " + json);
         return json;
     }
 }
