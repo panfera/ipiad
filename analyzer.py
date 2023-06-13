@@ -1,17 +1,10 @@
-import stanza
+import spacy
+from spacy.lang.ru.examples import sentences
 from sys import argv
 script, text = argv
 
-#f = open(first,'r',encoding='utf-8')
-#text = f.read()
-#print(text)
-
-f_w = open("output.txt", 'w', encoding='utf-8')
-
-stanza.download('ru')
-nlp = stanza.Pipeline('ru')
+nlp = spacy.load("ru_core_news_sm")
 doc = nlp(text)
-f_w.write(str(doc))
-f_w.write(str(doc.entities))
-#f.close()
-f_w.close()
+print(doc.text)
+for token in doc:
+    print(token.text, token.pos_, token.dep_)

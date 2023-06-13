@@ -90,3 +90,9 @@ GET news/_search
   ]
 }
 ```
+
+## Выявление сущностей
+```agsl
+pip install spacy
+python -m spacy download ru_core_news_sm
+```
