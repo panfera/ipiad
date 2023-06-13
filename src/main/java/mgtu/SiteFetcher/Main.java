@@ -13,10 +13,10 @@ import org.elasticsearch.client.RestHighLevelClient;
 
 public class Main {
     private static Logger log = LogManager.getLogger();
-    private static Thread taskProducer;
-    private static Thread taskConsumer;
-    private static Thread taskES;
-   // private static String site = "https://bugs.chromium.org/p/chromium/issues/"; //https://mcpromo.ru/e";//https://mytyshi.ru/";
+    //private static Thread taskProducer;
+    //private static Thread taskConsumer;
+    //private static Thread taskES;
+
 
     public static void main(String[] args) {
         BasicConfigurator.configure();
@@ -26,15 +26,19 @@ public class Main {
                     "/",
                     "127.0.0.1",
                     5672);
+            /*for (int i = 0; i < 2; i++) {
+                Thread taskES = new Thread(new ElasticSearch(rabbitCreds));
+                taskES.start();
+            }*/
 
-            taskES = new Thread(new ElasticSearch(rabbitCreds));
-            taskES.start();
-
-            taskProducer = new Thread(new TaskProducer(rabbitCreds));
-            taskProducer.start();
-
-            taskConsumer = new Thread(new TaskConsumer(rabbitCreds));
-            taskConsumer.start();
+            for (int i = 0; i < 2; i++) {
+                Thread taskProducer = new Thread(new TaskProducer(rabbitCreds));
+                taskProducer.start();
+            }
+            for (int i = 0; i < 2; i++) {
+                Thread taskConsumer = new Thread(new TaskConsumer(rabbitCreds));
+                taskConsumer.start();
+            }
 
 
 

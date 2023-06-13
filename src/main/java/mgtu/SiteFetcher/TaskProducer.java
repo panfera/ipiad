@@ -17,6 +17,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 
+import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
@@ -47,10 +48,9 @@ public class TaskProducer extends Thread{
     private CloseableHttpClient client = null;
     private HttpClientContext context;
     //private HttpClientBuilder builder;
-    private URL serverUrl = new URL("https://www.sport-express.ru/");
+    private URL serverUrl = new URL("https://www.mk.ru/");
     private List<Header> headers = new ArrayList<>();
 
-    //private String server = "https://mytishi.ru/";
     private int retryDelay = 5 * 1000;
     private int retryCount = 2;
     //private Timeout metadataTimeout = Timeout.ofSeconds(30);
@@ -116,8 +116,8 @@ public class TaskProducer extends Thread{
                     log.info("New link: " + message);
                     //URL url = new URL(message);
                     try {
-                        Document d = getUrl(message);
-                        String doc = String.valueOf(d);
+                        String doc = getUrl(message);
+                        //String doc = String.valueOf(d);
                         //if (doc != "null") {
                             log.info("Add to queueParse new doc with link: " + message);
                             publishToRMQ(doc, queueParse);
@@ -159,11 +159,11 @@ public class TaskProducer extends Thread{
             log.error(e);
         }
     }
-public Document getUrl(String  url) throws URISyntaxException{
+public String getUrl(String  url) throws URISyntaxException{
         //String url = server + "/news/" + newsId;
         int code = 0;
         boolean bStop = false;
-        Document doc = null;
+        String doc = null;
         URI uri;
         try {
             uri = new URI(serverUrl + url);
@@ -194,13 +194,9 @@ public Document getUrl(String  url) throws URISyntaxException{
                 }
                 else if (code == 200) {
                     HttpEntity entity = response.getEntity();
-                    if (entity != null && serverUrl != null){
-                        try {
-                            doc = Jsoup.parse(entity.getContent(), "UTF-8", serverUrl.toString());
-                            break;
-                        } catch (IOException e){
-                            log.error(e);
-                        }
+                    if (entity != null) {
+                        doc = EntityUtils.toString(entity, "UTF-8");
+                        break;
                     }
                     bStop = true;
                 } else {

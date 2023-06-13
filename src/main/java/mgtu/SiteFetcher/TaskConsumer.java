@@ -32,7 +32,7 @@ public class TaskConsumer extends Thread {
 
     static String queueElk = "elk_queue";
     static String routingKey_elastic = "Route_to_elastic";
-    static String serverUrl = "https://www.sport-express.ru/";
+    static String serverUrl = "https://www.mk.ru/";
     Connection conn;
 
     public TaskConsumer(RabbitMqCreds rabbitCreds) throws IOException, TimeoutException {
@@ -59,7 +59,7 @@ public class TaskConsumer extends Thread {
                     List<String> urls = parseDocument(message);
 
                     Article article = getArticle(message);
-                    if (article!= null && elk_check_unique(article)) {
+                    if (article!= null ) {//&& elk_check_unique(article)) {
                         // convert user object to json string and return it
                         String jsonString = article.convert_to_Json().toString();
                         publishToRMQ(jsonString, queueElk);
@@ -119,10 +119,14 @@ public class TaskConsumer extends Thread {
             parsedDoc = Jsoup.parse(doc);
 
             try {
-                timeTag = parsedDoc.getElementsByTag("time").first().attr("datetime");
-                formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
+
+                timeTag = parsedDoc.getElementsByClass("meta__text").attr("datetime");
+                //2023-06-13T17:21:28+0300
+                formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:sszzz", Locale.ENGLISH);
                 date = formatter.parse(timeTag);
+                log.info("dates" + date);
             }catch (Exception e){
+                sleep(1000);
                 date = new Date();
             }
 
@@ -139,17 +143,18 @@ public class TaskConsumer extends Thread {
             }
 
             try{
-                author = parsedDoc.getElementsByClass("author-item").first().select("a").first().text();
+                author = parsedDoc.getElementsByClass("article__author-image").attr("alt");
             }catch(Exception e){
                 author = "";
             }
 
             try {
-                contents = parsedDoc.getElementsByClass("b_article-text").select("p");
+                contents = parsedDoc.getElementsByClass("article__body").select("p");
                 content = "";
                 for (Element element : contents) {
                     content += element.text() + "\n";
                 }
+                //log.info(content);
             }catch(Exception e){
                 content="";
             }
@@ -164,10 +169,10 @@ public class TaskConsumer extends Thread {
         List<String> urls = new ArrayList();
         try {
             Document parsedDoc = Jsoup.parse(doc);
-            Elements aTag = parsedDoc.getElementsByClass("se-mainnews-item"); //.getElementsByClass("w_col2"). select("a");
+            Elements aTag = parsedDoc.getElementsByClass("news-listing__item"). select("a"); //.getElementsByClass("w_col2"). select("a");
             for (Element element : aTag) {
                 try {
-                    String link = element.attr("data-url");
+                    String link = element.attr("href");
 //                    log.info(element.text());
                     if (!link.startsWith("https://") && !link.startsWith("http://")) {
                         link = serverUrl + link;
