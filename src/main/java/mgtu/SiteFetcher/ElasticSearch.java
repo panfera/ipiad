@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -20,18 +22,26 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.InvalidIndexNameException;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.json.JSONObject;
+import org.apache.http.util.EntityUtils;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
 public class ElasticSearch extends Thread {
     public static Logger log = LogManager.getLogger();
     private Channel channel;
@@ -162,6 +172,23 @@ public class ElasticSearch extends Thread {
         boolean exist = client.exists(request, RequestOptions.DEFAULT);
         return exist;
     }
+
+    public static SearchHits get_text(String title) throws IOException {
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.query(QueryBuilders.termQuery("title", title));
+        sourceBuilder.from(0);
+        sourceBuilder.size(1);
+        //sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        SearchRequest searchRequest = new SearchRequest();
+        searchRequest.indices(index);
+        searchRequest.source(sourceBuilder);
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        SearchHits hits = searchResponse.getHits();
+        log.info("get texts");
+
+        return hits;
+    }
     private void push_to_elk(Article obj) throws IOException, NoSuchAlgorithmException {
        /* IndexRequest request = new IndexRequest(index);
         request.id(obj.sha256);
@@ -186,6 +213,8 @@ public class ElasticSearch extends Thread {
             log.info("Success update in elk");
         }
     }
+
+
 
     @Override
     public void run() {

@@ -16,7 +16,7 @@ public class Main {
     //private static Thread taskProducer;
     //private static Thread taskConsumer;
     //private static Thread taskES;
-
+    protected static String author = "Эмма Грибова";
 
     public static void main(String[] args) {
         BasicConfigurator.configure();
@@ -31,14 +31,17 @@ public class Main {
                 taskES.start();
             }
 
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 0; i++) {
                 Thread taskProducer = new Thread(new TaskProducer(rabbitCreds));
                 taskProducer.start();
             }
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 0; i++) {
                 Thread taskConsumer = new Thread(new TaskConsumer(rabbitCreds));
                 taskConsumer.start();
             }
+
+            Analyzer a = new Analyzer();
+            a.run_py_script(author);
 
 
 
