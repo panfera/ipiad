@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -40,12 +41,12 @@ public class ElasticSearch extends Thread {
     static String queueElk = "elk_queue";
     static String consumerTag = "myConsumerTag";
     static String routingKey_elastic = "Route_to_elastic";
-    static String serverUrl = "https://www.sport-express.ru/";
+    static String serverUrl = "https://www.mk.ru/";
     Connection conn;
     String hostname = "localhost";
     int port = 9200;
     private static RestHighLevelClient client;
-    private static final String index = "sport";
+    private static final String index = "news";
     private static final String mapping = """
             {
               "mappings": {
@@ -103,7 +104,7 @@ public class ElasticSearch extends Thread {
                 });
         client = new RestHighLevelClient(restClientBuilder);
 
-
+        /*
         GetIndexRequest request_check = new GetIndexRequest(index);
 
         boolean exists = client.indices().exists(request_check, RequestOptions.DEFAULT);
@@ -114,10 +115,10 @@ public class ElasticSearch extends Thread {
         }
         CreateIndexRequest request = new CreateIndexRequest(index);
         request.settings(Settings.builder()
-                .put("index.number_of_shards", 3)
-                .put("index.number_of_replicas", 2)
+                .put("index.number_of_shards", 1)
+                .put("index.number_of_replicas", 1)
         );
-        request.mapping(
+        request.source(
                 "{\n" +
                         "  \"properties\": {\n" +
                         "    \"title\": {\n" +
@@ -153,7 +154,7 @@ public class ElasticSearch extends Thread {
             }
         } catch (InvalidIndexNameException e) {
             log.error(e);
-        }
+        }*/
     }
 
     public static boolean elk_check_unique(Article article) throws IOException {
@@ -161,26 +162,34 @@ public class ElasticSearch extends Thread {
         boolean exist = client.exists(request, RequestOptions.DEFAULT);
         return exist;
     }
-    private void push_to_elk(Article obj) throws IOException {
-        IndexRequest request = new IndexRequest(index);
-
+    private void push_to_elk(Article obj) throws IOException, NoSuchAlgorithmException {
+       /* IndexRequest request = new IndexRequest(index);
         request.id(obj.sha256);
         request.source(obj.convert_to_Json(), XContentType.JSON);
         IndexResponse response = client.index(request, RequestOptions.DEFAULT);
         String index = response.getIndex();
 
-        String id = response.getId();
+        if (response.getResult() == DocWriteResponse.Result.CREATED) {
+            log.info("Success push to elk");
+        } else if (response.getResult() == DocWriteResponse.Result.UPDATED) {
+            log.info("Success update in elk");
+        }*/
+
+        IndexRequest request = new IndexRequest(index);
+        request.source(obj.convert_to_HashMap());
+        IndexResponse response = client.index(request, RequestOptions.DEFAULT);
 
         if (response.getResult() == DocWriteResponse.Result.CREATED) {
-            log.info("Success push to elk, id: " + id);
+            log.info("Success push to elk");
         } else if (response.getResult() == DocWriteResponse.Result.UPDATED) {
-            log.info("Success update, id: " + id);
+            log.info("Success update in elk");
         }
     }
+
     @Override
     public void run() {
         try {
-            GetIndexRequest request = new GetIndexRequest("sport");
+            GetIndexRequest request = new GetIndexRequest(index);
             boolean tmp = false;
             tmp = client.indices().exists(request, RequestOptions.DEFAULT);
             channel.basicConsume(queueElk, false, consumerTag, new DefaultConsumer(channel) {

@@ -26,10 +26,10 @@ public class Main {
                     "/",
                     "127.0.0.1",
                     5672);
-            /*for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 1; i++) {
                 Thread taskES = new Thread(new ElasticSearch(rabbitCreds));
                 taskES.start();
-            }*/
+            }
 
             for (int i = 0; i < 2; i++) {
                 Thread taskProducer = new Thread(new TaskProducer(rabbitCreds));

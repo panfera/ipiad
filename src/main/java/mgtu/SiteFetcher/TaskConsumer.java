@@ -59,7 +59,7 @@ public class TaskConsumer extends Thread {
                     List<String> urls = parseDocument(message);
 
                     Article article = getArticle(message);
-                    if (article!= null ) {//&& elk_check_unique(article)) {
+                    if (article!= null && !elk_check_unique(article)) {
                         // convert user object to json string and return it
                         String jsonString = article.convert_to_Json().toString();
                         publishToRMQ(jsonString, queueElk);
@@ -71,7 +71,7 @@ public class TaskConsumer extends Thread {
                         }
 
                     } else {
-                        log.info("Document already exist in elk wirh sha256: " + article.sha256);
+                        log.info("Document already exist in elk with sha256: " + article.sha256);
                     }
                     channel.basicAck(deliveryTag, false);
                 }

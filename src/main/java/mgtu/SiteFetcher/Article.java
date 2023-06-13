@@ -3,6 +3,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
@@ -10,6 +11,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class Article {
@@ -74,6 +76,17 @@ public class Article {
         this.date = formatter.parse(json.getString("date"));;
         this.content = json.getString("content");
         this.sha256 = json.getString("sha256");
+    }
+
+    public HashMap<String, String> convert_to_HashMap() throws NoSuchAlgorithmException {
+        HashMap<String, String> article = new HashMap<String, String>();
+        article.put("title", this.title);
+        article.put("author", this.author);
+        article.put("url", this.url);
+        article.put("date", this.date.toString());
+        article.put("content", this.content);
+        article.put("sha256", this.sha256);
+        return article;
     }
     public JSONObject convert_to_Json() {
         JSONObject json = new JSONObject();
