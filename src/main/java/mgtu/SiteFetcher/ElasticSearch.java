@@ -177,6 +177,7 @@ public class ElasticSearch extends Thread {
 
         IndexRequest request = new IndexRequest(index);
         request.source(obj.convert_to_HashMap());
+        request.id(obj.sha256);
         IndexResponse response = client.index(request, RequestOptions.DEFAULT);
 
         if (response.getResult() == DocWriteResponse.Result.CREATED) {
