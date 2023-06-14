@@ -8,9 +8,10 @@ public class Main {
     //private static Thread taskProducer;
     //private static Thread taskConsumer;
     //private static Thread taskES;
-    private static int count_producer = 2;
-    private static int count_consumer = 2;
+    private static int count_producer = 0;
+    private static int count_consumer = 0;
     private static int count_es = 1;
+    private static boolean analyze = true;
     protected static String author = "Эмма Грибова";
 
     public static void main(String[] args) {
@@ -35,9 +36,10 @@ public class Main {
                 taskConsumer.start();
             }
 
-            Analyzer analyzer = new Analyzer();
-            analyzer.run_py_script(author);
-
+            if (analyze) {
+                Analyzer analyzer = new Analyzer();
+                analyzer.run_py_script(author);
+            }
         } catch (Exception e) {
             log.error(e);
         }
