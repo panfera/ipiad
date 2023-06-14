@@ -7,17 +7,12 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -25,22 +20,10 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.*;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.indices.InvalidIndexNameException;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.XContentType;
-import org.json.JSONObject;
-import org.apache.http.util.EntityUtils;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 public class ElasticSearch extends Thread {
     public static Logger log = LogManager.getLogger();
@@ -55,37 +38,11 @@ public class ElasticSearch extends Thread {
     Connection conn;
     String hostname = "localhost";
     int port = 9200;
+    String sheme = "http";
+    String userName = "elastic";
+    String password = "elastic";
     private static RestHighLevelClient client;
     private static final String index = "news";
-    private static final String mapping = """
-            {
-              "mappings": {
-                "properties": {
-                 "title": {
-                    "type": "text",
-                    "analyzer": "russian"
-                  },
-                  "author": {
-                    "type": "text",
-                    "analyzer": "russian"
-                  },
-                  "url": {
-                    "type": "keyword"
-                  },
-                  "date": {
-                    "type": "date"
-                  },
-                  "content": {
-                    "type": "text",
-                    "analyzer": "russian"
-                  },
-                  "sha256": {
-                    "type": "keyword"
-                  }
-                }
-              }
-            }
-            """;
 
     public ElasticSearch(RabbitMqCreds rabbitCreds) throws IOException, TimeoutException {
         ConnectionFactory factory = new ConnectionFactory();
@@ -103,9 +60,9 @@ public class ElasticSearch extends Thread {
 
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(
-                AuthScope.ANY, new UsernamePasswordCredentials("elastic", "elastic"));
+                AuthScope.ANY, new UsernamePasswordCredentials(userName, password));
         RestClientBuilder restClientBuilder = RestClient
-                .builder(new HttpHost("localhost", 9200, "http"))
+                .builder(new HttpHost(hostname, port, sheme))
                 .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
                     @Override
                     public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
@@ -235,7 +192,7 @@ public class ElasticSearch extends Thread {
                     } catch (Exception e) {
                         log.error(e);
                     }
-                    // is_uniq? and send_to_elastic
+
                     channel.basicAck(deliveryTag, false);
                 }
             });

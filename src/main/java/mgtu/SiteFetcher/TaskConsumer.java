@@ -1,11 +1,8 @@
 package mgtu.SiteFetcher;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.jackson.map.JsonMappingException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -31,7 +28,6 @@ public class TaskConsumer extends Thread {
     static String consumerTag = "myConsumerTag";
 
     static String queueElk = "elk_queue";
-    static String routingKey_elastic = "Route_to_elastic";
     static String serverUrl = "https://www.mk.ru/";
     Connection conn;
 
@@ -92,7 +88,6 @@ public class TaskConsumer extends Thread {
             return;
         }
         try {
-//            channel.queueDeclare(queuePublish, false, false, false, null);
             channel.basicPublish(
                     exchangeName,
                     queuePublish,

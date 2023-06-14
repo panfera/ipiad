@@ -4,17 +4,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
-import org.python.util.PythonInterpreter;
-
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.SimpleScriptContext;
 import java.io.*;
-import java.util.List;
 import java.util.Map;
 
-import static javatests.TestSupport.assertEquals;
+
 import static mgtu.SiteFetcher.ElasticSearch.get_text;
 
 public class Analyzer {

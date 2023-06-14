@@ -3,42 +3,26 @@ package mgtu.SiteFetcher;
 import com.rabbitmq.client.*;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.RequestLine;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicHeader;
 
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 
@@ -53,11 +37,9 @@ public class TaskProducer extends Thread{
 
     private int retryDelay = 5 * 1000;
     private int retryCount = 2;
-    //private Timeout metadataTimeout = Timeout.ofSeconds(30);
     private int metadataTimeout = 30 * 1000;
     private Channel channel;
     static String exchangeName = "";
-    static String RoutingKeyToDownload = "routingKeyToDownload";
     public static String userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 YaBrowser/23.1.2.998 Yowser/2.5 Safari/537.36";
 
     static String queueDownload = "queue download";
@@ -114,14 +96,10 @@ public class TaskProducer extends Thread{
                     long deliveryTag = envelope.getDeliveryTag();
                     String message = new String(body, StandardCharsets.UTF_8);
                     log.info("New link: " + message);
-                    //URL url = new URL(message);
                     try {
                         String doc = getUrl(message);
-                        //String doc = String.valueOf(d);
-                        //if (doc != "null") {
-                            log.info("Add to queueParse new doc with link: " + message);
-                            publishToRMQ(doc, queueParse);
-                        //}
+                        log.info("Add to queueParse new doc with link: " + message);
+                        publishToRMQ(doc, queueParse);
                     } catch (URISyntaxException e) {
                         throw new RuntimeException(e);
                     }
@@ -144,7 +122,6 @@ public class TaskProducer extends Thread{
             return;
         }
         try {
-//            channel.queueDeclare(queuePublish, false, false, false, null);
             channel.basicPublish(
                     exchangeName,
                     queuePublish,
@@ -174,8 +151,6 @@ public String getUrl(String  url) throws URISyntaxException{
 
         for (int iTry = 0; iTry < retryCount && !bStop; iTry++){
             log.info("getting page from url " + url);
-            //client = builder.build();
-            //client = HttpClientBuilder.create().build();
             RequestConfig requestConfig = RequestConfig.custom()
                     //.setSocketTimeout(metadataTimeout)
                     .setConnectTimeout(metadataTimeout)
